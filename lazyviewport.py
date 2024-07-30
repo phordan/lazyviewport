@@ -1,4 +1,8 @@
-"""Lazy Viewport 1.3
+"""Lazy Viewport 1.3.1
+
+1.3.1
+--Jul 29 2024--
+**this is a fork by phordan allowing a toggle to enable/disable the addon and hotkeys**
 
 1.3 Updates
 - Fixed error on previous versions of blender
@@ -14,16 +18,44 @@ Now supporting the modes:
 - UV Edit Mode
 - Metaball Mode
 - Pose Mode
+
+
 """
 import bpy
+from bpy.props import BoolProperty
 
 bl_info = {
-    "name": "Lazy Viewport 1.3",
+    "name": "Lazy Viewport 1.3.1",
     "blender": (2, 80, 0),
     "category": "Object",
 }
 
 addon_keymaps = []
+is_enabled = True
+
+class LazyViewportPreferences(bpy.types.AddonPreferences):
+    bl_idname = __name__
+
+    enabled: BoolProperty(
+        name="Enable Add-on",
+        default=True,
+        update=lambda self, context: toggle_addon(self, context)
+    )
+
+    def draw(self, context):
+        layout = self.layout
+        layout.prop(self, "enabled")
+
+def toggle_addon(self, context):
+    global is_enabled
+    is_enabled = self.enabled
+    show_notification(f"Lazy Viewport {'Enabled' if is_enabled else 'Disabled'}")
+
+def show_notification(message):
+    def draw(self, context):
+        self.layout.label(text=message)
+
+    bpy.context.window_manager.popup_menu(draw, title="Lazy Viewport", icon='INFO')
 
 class LazyViewPortMove(bpy.types.Operator):
     bl_idname = "object.lazy_viewport_move"
@@ -31,7 +63,8 @@ class LazyViewPortMove(bpy.types.Operator):
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
-        set_active_tool('builtin.move')
+        if is_enabled:
+            set_active_tool('builtin.move')
         return {'FINISHED'}
 
 class LazyViewPortRotate(bpy.types.Operator):
@@ -40,9 +73,9 @@ class LazyViewPortRotate(bpy.types.Operator):
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
-        set_active_tool('builtin.rotate')
+        if is_enabled:
+            set_active_tool('builtin.rotate')
         return {'FINISHED'}
-
 
 class LazyViewPortScale(bpy.types.Operator):
     bl_idname = "object.lazy_viewport_scale"
@@ -50,9 +83,9 @@ class LazyViewPortScale(bpy.types.Operator):
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
-        set_active_tool('builtin.scale')
+        if is_enabled:
+            set_active_tool('builtin.scale')
         return {'FINISHED'}
-
 
 class LazyViewPortSelect(bpy.types.Operator):
     bl_idname = "object.lazy_viewport_select"
@@ -60,62 +93,65 @@ class LazyViewPortSelect(bpy.types.Operator):
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
-        set_active_tool('builtin.select_box')
+        if is_enabled:
+            set_active_tool('builtin.select_box')
         return {'FINISHED'}
 
+class LazyViewPortToggle(bpy.types.Operator):
+    bl_idname = "object.lazy_viewport_toggle"
+    bl_label = "Toggle Lazy Viewport"
+
+    def execute(self, context):
+        preferences = context.preferences.addons[__name__].preferences
+        preferences.enabled = not preferences.enabled
+        return {'FINISHED'}
 
 def set_active_tool(tool_name):
-
     for area in bpy.context.screen.areas:
         types = ['VIEW_3D', 'IMAGE_EDITOR']
         for t in types:
             if area.type == t:
-                try:
-                    # before 4.0
-                    override = bpy.context.copy()
-                    override["space_data"] = area.spaces[0]
-                    override["area"] = area
-                    bpy.ops.wm.tool_set_by_id(override, name=tool_name)
-                except:
-                    pass
-
-                try:
-                    # 4.0 update
-                    override = bpy.context.copy()
-                    override["space_data"] = area.spaces[0]
-                    override["area"] = area
-                    override["region"] = area.regions[0]
-                    
-                    with bpy.context.temp_override(**override):
-                        bpy.ops.wm.tool_set_by_id(name=tool_name)
-                except:
-                    pass
-
+                override = bpy.context.copy()
+                override["space_data"] = area.spaces[0]
+                override["area"] = area
+                override["region"] = area.regions[0]
+                
+                with bpy.context.temp_override(**override):
+                    bpy.ops.wm.tool_set_by_id(name=tool_name)
 
 def register():
+    bpy.utils.register_class(LazyViewportPreferences)
     bpy.utils.register_class(LazyViewPortMove)
     bpy.utils.register_class(LazyViewPortRotate)
     bpy.utils.register_class(LazyViewPortScale)
     bpy.utils.register_class(LazyViewPortSelect)
+    bpy.utils.register_class(LazyViewPortToggle)
 
-    # handle the keymap
+    wm = bpy.context.window_manager
+    km = wm.keyconfigs.addon.keymaps.new(name='Window', space_type='EMPTY')
+    km.keymap_items.new(LazyViewPortToggle.bl_idname, 'F1', 'PRESS', shift=True)
+    addon_keymaps.append(km)
+
     types = ['Object Mode', 'Mesh', 'Curve', 'Lattice', 'Armature', "Metaball", "UV Editor", "Pose"]
     for t in types:
-        wm = bpy.context.window_manager
         km = wm.keyconfigs.addon.keymaps.new(name=t, space_type='EMPTY')
         km.keymap_items.new(LazyViewPortMove.bl_idname, 'G', 'PRESS', ctrl=False, shift=False)
         km.keymap_items.new(LazyViewPortRotate.bl_idname, 'R', 'PRESS', ctrl=False, shift=False)
         km.keymap_items.new(LazyViewPortScale.bl_idname, 'S', 'PRESS', ctrl=False, shift=False)
         km.keymap_items.new(LazyViewPortSelect.bl_idname, 'W', 'PRESS', ctrl=False, shift=False)
-
         addon_keymaps.append(km)
 
 def unregister():
+    for km in addon_keymaps:
+        bpy.context.window_manager.keyconfigs.addon.keymaps.remove(km)
+    addon_keymaps.clear()
+
+    bpy.utils.unregister_class(LazyViewportPreferences)
     bpy.utils.unregister_class(LazyViewPortMove)
     bpy.utils.unregister_class(LazyViewPortRotate)
     bpy.utils.unregister_class(LazyViewPortScale)
     bpy.utils.unregister_class(LazyViewPortSelect)
-
+    bpy.utils.unregister_class(LazyViewPortToggle)
 
 if __name__ == "__main__":
     register()
