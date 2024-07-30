@@ -1,4 +1,7 @@
-**Lazy Viewport 1.3**
+**Lazy Viewport 1.3.1 phordan fork**
+
+> [!NOTE]
+> **Phordan 1.3.1 fork:** *added Shift-F1 as a hotkey to toggle the addon on/off*
 
 Blender 4.0 updated!
 
