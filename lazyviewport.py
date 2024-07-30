@@ -2,7 +2,7 @@
 
 1.3.1
 --Jul 29 2024--
-**this is a fork by phordan allowing a toggle to enable/disable the addon and hotkeys**
+**this is a fork by phordan allowing a toggle to enable/disable the addon and hotkeys with Shift-F1**
 
 1.3 Updates
 - Fixed error on previous versions of blender
@@ -50,6 +50,9 @@ def toggle_addon(self, context):
     global is_enabled
     is_enabled = self.enabled
     show_notification(f"Lazy Viewport {'Enabled' if is_enabled else 'Disabled'}")
+    if not is_enabled:
+        set_active_tool('builtin.select_box')
+    update_keymaps()
 
 def show_notification(message):
     def draw(self, context):
@@ -119,6 +122,30 @@ def set_active_tool(tool_name):
                 with bpy.context.temp_override(**override):
                     bpy.ops.wm.tool_set_by_id(name=tool_name)
 
+def update_keymaps():
+    global addon_keymaps
+    wm = bpy.context.window_manager
+
+    # Clear existing keymaps
+    for km in addon_keymaps:
+        for kmi in km.keymap_items:
+            km.keymap_items.remove(kmi)
+
+    # Always keep the toggle hotkey
+    km = wm.keyconfigs.addon.keymaps.new(name='Window', space_type='EMPTY')
+    km.keymap_items.new(LazyViewPortToggle.bl_idname, 'F1', 'PRESS', shift=True)
+
+    if is_enabled:
+        # Add other hotkeys only when enabled
+        types = ['Object Mode', 'Mesh', 'Curve', 'Lattice', 'Armature', "Metaball", "UV Editor", "Pose"]
+        for t in types:
+            km = wm.keyconfigs.addon.keymaps.new(name=t, space_type='EMPTY')
+            km.keymap_items.new(LazyViewPortMove.bl_idname, 'G', 'PRESS', ctrl=False, shift=False)
+            km.keymap_items.new(LazyViewPortRotate.bl_idname, 'R', 'PRESS', ctrl=False, shift=False)
+            km.keymap_items.new(LazyViewPortScale.bl_idname, 'S', 'PRESS', ctrl=False, shift=False)
+            km.keymap_items.new(LazyViewPortSelect.bl_idname, 'W', 'PRESS', ctrl=False, shift=False)
+            addon_keymaps.append(km)
+
 def register():
     bpy.utils.register_class(LazyViewportPreferences)
     bpy.utils.register_class(LazyViewPortMove)
@@ -126,24 +153,12 @@ def register():
     bpy.utils.register_class(LazyViewPortScale)
     bpy.utils.register_class(LazyViewPortSelect)
     bpy.utils.register_class(LazyViewPortToggle)
-
-    wm = bpy.context.window_manager
-    km = wm.keyconfigs.addon.keymaps.new(name='Window', space_type='EMPTY')
-    km.keymap_items.new(LazyViewPortToggle.bl_idname, 'F1', 'PRESS', shift=True)
-    addon_keymaps.append(km)
-
-    types = ['Object Mode', 'Mesh', 'Curve', 'Lattice', 'Armature', "Metaball", "UV Editor", "Pose"]
-    for t in types:
-        km = wm.keyconfigs.addon.keymaps.new(name=t, space_type='EMPTY')
-        km.keymap_items.new(LazyViewPortMove.bl_idname, 'G', 'PRESS', ctrl=False, shift=False)
-        km.keymap_items.new(LazyViewPortRotate.bl_idname, 'R', 'PRESS', ctrl=False, shift=False)
-        km.keymap_items.new(LazyViewPortScale.bl_idname, 'S', 'PRESS', ctrl=False, shift=False)
-        km.keymap_items.new(LazyViewPortSelect.bl_idname, 'W', 'PRESS', ctrl=False, shift=False)
-        addon_keymaps.append(km)
+    update_keymaps()
 
 def unregister():
     for km in addon_keymaps:
-        bpy.context.window_manager.keyconfigs.addon.keymaps.remove(km)
+        for kmi in km.keymap_items:
+            km.keymap_items.remove(kmi)
     addon_keymaps.clear()
 
     bpy.utils.unregister_class(LazyViewportPreferences)
