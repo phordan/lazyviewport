@@ -4,6 +4,10 @@
 > **Phordan 1.3.1 fork:** *added Shift-F1 as a hotkey to toggle the addon on/off*
 > When Lazy Viewport is toggled on/off, it will also notify the user and if going from on -> off, switch to the box select tool to reduce confusion.
 
+_note from **phordan**:_ i just added a toggle. forking someone else's open source thingy to do a thing you need real quick is sometimes an interesting process, huh? 
+    Everything else from here is straight from the original lazyviewport 1.3 readme.
+---
+
 Blender 4.0 updated!
 
 **What does it do?**
