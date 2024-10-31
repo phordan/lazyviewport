@@ -6,6 +6,7 @@
 
 _note from **phordan**:_ i just added a toggle. forking someone else's open source thingy to do a thing you need real quick is sometimes an interesting process, huh? 
     Everything else from here is straight from the original lazyviewport 1.3 readme.
+
 ---
 
 Blender 4.0 updated!
